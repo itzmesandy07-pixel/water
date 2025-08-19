@@ -6,66 +6,95 @@
 
 <style>
     body {
-        margin : 0;
+        margin: 0;
         font-family: Arial, sans-serif;
         text-align: center;
-        height: 100vh;
+        background: #111;
+        color: white;
+        min-height: 100vh;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        color: white;
-        font-size: 3em;
+    }
+    h1 {
+        margin-bottom: 20px;
+    }
+    .container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 15px;
+    }
+    .card {
+        width: 280px;
+        padding: 20px;
+        border-radius: 12px;
+        font-size: 1.4em;
         font-weight: bold;
         transition: background-color 0.5s ease;
     }
 </style>
 </head>
-<body id="statusBody">
-    <div id="statusText">Loading...</div>
+<body>
+    <h1>🏢 Water Monitor – Floor Status</h1>
+    <div class="container">
+        <div id="floor1" class="card">Loading Floor 1...</div>
+        <div id="floor2" class="card">Loading Floor 2...</div>
+    </div>
 
 <script>
-const channelID = "3036096"; // Your ThingSpeak Channel ID
-const readAPIKey = "M1SKX47JKTS0EUA4"; // Your ThingSpeak Read API Key
-const fieldNum = 1; // Which field stores the water status
-const fetchInterval = 5000; // Check every 5 seconds
+// ==================== CONFIG ====================
+const channels = {
+    floor1: { id: "3036096", field: "1", key: "M1SKX47JKTS0EUA4" }, // ESP1 Channel + Field
+    floor2: { id: "3039978", field: "1", key: "XU9D6LUKCSP02Q4H" },  // ESP2 Channel + Field
+    floor3: { id: "3038000", field: "1", key: "YYYYYYYYYYYYYYY" }   // ESP3 Channel + Field
+};
+const fetchInterval = 5000; // every 5s
+// =================================================
 
-function fetchData() {
-    fetch(`https://api.thingspeak.com/channels/${channelID}/fields/${fieldNum}/last.json?api_key=${readAPIKey}`)
+function fetchData(floorId, config) {
+    fetch(`https://api.thingspeak.com/channels/${config.id}/fields/${config.field}/last.json?api_key=${config.key}`)
     .then(response => response.json())
     .then(data => {
         let value = parseInt(data.field1);
-        updateStatus(value);
+        updateStatus(floorId, value);
     })
     .catch(error => {
         console.error("Error fetching data:", error);
-        document.getElementById("statusText").innerText = "Error!";
-        document.getElementById("statusBody").style.backgroundColor = "gray";
+        let card = document.getElementById(floorId);
+        card.innerText = "Error!";
+        card.style.backgroundColor = "gray";
     });
 }
 
-function updateStatus(value) {
-    let statusText = document.getElementById("statusText");
-    let body = document.getElementById("statusBody");
+function updateStatus(floorId, value) {
+    let card = document.getElementById(floorId);
+    let floorNum = floorId.replace("floor", "");
 
     if (value === 1) {
-        statusText.innerText = "🚫 NOT SAFE";
-        body.style.backgroundColor = "red";
+        card.innerText = `🚫 Floor ${floorNum} – NOT SAFE`;
+        card.style.backgroundColor = "red";
     } else if (value === 2) {
-        statusText.innerText = "✅ SAFE";
-        body.style.backgroundColor = "green";
+        card.innerText = `✅ Floor ${floorNum} – SAFE`;
+        card.style.backgroundColor = "green";
     } else if (value === 3) {
-        statusText.innerText = "⚙ PROCESSING";
-        body.style.backgroundColor = "blue";
+        card.innerText = `⚙ Floor ${floorNum} – PROCESSING`;
+        card.style.backgroundColor = "blue";
     } else {
-        statusText.innerText = "No Data";
-        body.style.backgroundColor = "gray";
+        card.innerText = `Floor ${floorNum} – No Data`;
+        card.style.backgroundColor = "gray";
     }
 }
 
 // First fetch instantly
-fetchData();
-// Keep updating
-setInterval(fetchData, fetchInterval);
+Object.entries(channels).forEach(([floor, cfg]) => fetchData(floor, cfg));
+
+// Keep updating all floors
+setInterval(() => {
+    Object.entries(channels).forEach(([floor, cfg]) => fetchData(floor, cfg));
+}, fetchInterval);
+
 </script>
 </body>
 </html>
